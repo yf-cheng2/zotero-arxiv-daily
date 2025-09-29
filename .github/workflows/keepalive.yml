@@ -1,0 +1,36 @@
+name: Keep Repository Alive
+
+on:
+  workflow_dispatch: # 允许在 GitHub Actions 页面手动触发此工作流
+  schedule:
+    # 设置定时任务，此处示例为每30天在UTC时间午夜运行一次
+    # 你可以根据需要调整cron表达式，但建议间隔小于60天
+    - cron: '0 0 */30 * *'
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 关键：授予工作流写入仓库内容的权限
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        # 使用自动生成的GITHUB_TOKEN进行身份验证
+
+      - name: Create or update timestamp file
+        run: |
+          # 创建一个包含当前时间戳的文件，确保每次运行内容都不同
+          echo "Last keep-alive update: $(date -u)" > keepalive.txt
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add keepalive.txt
+          # 检查是否有文件变更，避免无变更时提交报错
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: keep repository alive [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
